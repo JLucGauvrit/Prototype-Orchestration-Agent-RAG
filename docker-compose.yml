@@ -12,6 +12,26 @@ services:
   # Example quick check inside the built container:
   #   python -c "import onnxruntime as ort; print(ort.get_available_providers())"
   # Expected providers when GPU is available: ['CUDAExecutionProvider', 'CPUExecutionProvider']
+  ui-server-MCP:
+    image: nginx:alpine
+    container_name: ui
+    restart: always
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    depends_on:
+      - mcp-server
+      - agent-a
+      - agent-b
+      - agent-c
+    networks:
+      - mcpnet
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./ui
+          target: /app
 
   mcp-server:
     build: ./server
