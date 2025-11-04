@@ -26,11 +26,13 @@ def ask_perplexity(prompt):
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
+    
     payload = {
-        "model": "llama-3-sonar-small-online",
+        "model": "sonar",  # ✅ MODÈLE VALIDE
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 128
     }
+    
     resp = requests.post(url, headers=headers, json=payload)
     if resp.status_code == 200:
         return resp.json()["choices"][0]["message"]["content"]
@@ -40,13 +42,13 @@ def ask_perplexity(prompt):
 async def rag(request: Request):
     data = await request.json()
     query = data["query"]
-
+    
     # Étape 1 : recherche locale
     results = collection.query(query_texts=[query], n_results=2)
     retrieved = " ".join(results["documents"][0])
-
+    
     # Étape 2 : génération via Perplexity
     combined_prompt = f"Context: {retrieved}\nQuestion: {query}"
     answer = ask_perplexity(combined_prompt)
-
+    
     return {"agent": AGENT_NAME, "answer": answer}
