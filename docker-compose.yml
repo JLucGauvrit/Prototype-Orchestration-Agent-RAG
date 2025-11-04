@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  mcp-server:
+    build: ./server
+    container_name: mcp-server
+    ports:
+      - "8000:8000"
+    networks:
+      - mcpnet
+
+  agent-a:
+    build: ./agent
+    container_name: agent-a
+    environment:
+      - AGENT_NAME=AgentA
+      - RAG_PATH=/rag_data/agent_a
+    volumes:
+      - ./rag_data/agent_a:/rag_data/agent_a
+    depends_on:
+      - mcp-server
+    networks:
+      - mcpnet
+
+  agent-b:
+    build: ./agent
+    container_name: agent-b
+    environment:
+      - AGENT_NAME=AgentB
+      - RAG_PATH=/rag_data/agent_b
+    volumes:
+      - ./rag_data/agent_b:/rag_data/agent_b
+    depends_on:
+      - mcp-server
+    networks:
+      - mcpnet
+
+  agent-c:
+    build: ./agent
+    container_name: agent-c
+    environment:
+      - AGENT_NAME=AgentC
+      - RAG_PATH=/rag_data/agent_c
+    volumes:
+      - ./rag_data/agent_c:/rag_data/agent_c
+    depends_on:
+      - mcp-server
+    networks:
+      - mcpnet
+
+networks:
+  mcpnet:
+    driver: bridge
