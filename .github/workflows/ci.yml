@@ -1,0 +1,62 @@
+name: Build & Test Docker Compose Project
+
+on:
+  push:
+    branches: [ main , dev ]
+  pull_request:
+    branches: [ main , dev ]
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Install Docker Compose
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y docker-compose
+
+    # Si tu utilises un .env local, adapte ou ajoute ici !
+
+    - name: Build all images with Compose
+      run: docker compose build
+
+    - name: Run docker compose config (lint)
+      run: docker compose config
+
+    - name: Start stack in detached mode
+      run: docker compose up -d
+
+    - name: Wait for MCP server health
+      run: |
+        tries=0
+        until [ $tries -ge 15 ]; do
+          if curl -s http://localhost:8000/health | grep -q "healthy"; then
+            echo "MCP server Healthy"
+            exit 0
+          fi
+          tries=$((tries+1))
+          sleep 4
+        done
+        exit 1
+
+    - name: Test Agent A
+      run: |
+        curl -s http://localhost:5001/health | grep -q "healthy"
+
+    - name: Test Agent B
+      run: |
+        curl -s http://localhost:5002/health | grep -q "healthy"
+
+    - name: Test Agent C
+      run: |
+        curl -s http://localhost:5003/health | grep -q "healthy"
+
+    - name: Stop docker compose
+      run: docker compose down
