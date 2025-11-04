@@ -14,12 +14,12 @@ services:
   # Expected providers when GPU is available: ['CUDAExecutionProvider', 'CPUExecutionProvider']
   ui-server-MCP:
     image: nginx:alpine
-    container_name: ui
+    container_name: ui-server-MCP
     restart: always
     ports:
       - "3000:80"
     volumes:
-      - ./ui:/usr/share/nginx/html:ro
+      - ./ui-MCP:/usr/share/nginx/html:ro
     depends_on:
       - mcp-server
       - agent-a
@@ -27,11 +27,6 @@ services:
       - agent-c
     networks:
       - mcpnet
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./ui
-          target: /app
 
   mcp-server:
     build: ./server
@@ -51,6 +46,8 @@ services:
     build: ./agent
     restart: always
     container_name: agent-a
+    ports:
+    - "5001:5000"
     environment:
     - AGENT_NAME=AgentA
     - RAG_PATH=/rag_data/agent_a
@@ -76,6 +73,8 @@ services:
     build: ./agent
     restart: always
     container_name: agent-b
+    ports:
+    - "5002:5000"
     environment:
     - AGENT_NAME=AgentB
     - RAG_PATH=/rag_data/agent_b
@@ -100,6 +99,8 @@ services:
     build: ./agent
     container_name: agent-c
     restart: always
+    ports:
+    - "5003:5000"
     environment:
     - AGENT_NAME=AgentC
     - RAG_PATH=/rag_data/agent_c

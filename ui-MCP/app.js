@@ -569,44 +569,59 @@ function setLoadingState(loading) {
 }
 
 async function performHealthCheck() {
-  addLog('Vérification de la santé des services...', 'info');
-  
-  const services = [
-    { id: 'mcp', url: `${state.apiBaseUrl}/health`, name: 'MCP Server' },
-    // Note: Direct agent checks won't work from browser due to CORS
-    // These would need to be proxied through the MCP server
+  const apiBaseUrl = document.getElementById("apiBaseUrl").value || "http://localhost:8000";
+  const healthItems = document.querySelectorAll(".health-item span[class^='health-status']");
+  healthItems.forEach(el => el.textContent = "⏳");
+
+  const agents = [
+    { key: "mcp", name: "MCP Server", url: `${apiBaseUrl}/health` },
+    { key: "agent-a", name: "Agent A", url: "http://localhost:5001/health" },
+    { key: "agent-b", name: "Agent B", url: "http://localhost:5002/health" },
+    { key: "agent-c", name: "Agent C", url: "http://localhost:5003/health" },
   ];
-  
-  for (const service of services) {
-    const healthItem = document.querySelector(`.health-item[data-service="${service.id}"]`);
-    const statusSpan = healthItem.querySelector('.health-status');
-    
-    statusSpan.textContent = '⏳';
-    
-    try {
-      const response = await fetch(service.url, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        statusSpan.textContent = '✅';
-        updateServiceStatus(service.id, true);
-        addLog(`${service.name} est en ligne`, 'success');
-      } else {
-        statusSpan.textContent = '❌';
-        updateServiceStatus(service.id, false);
-        addLog(`${service.name} a retourné le statut ${response.status}`, 'error');
-      }
-    } catch (error) {
-      statusSpan.textContent = '❌';
-      updateServiceStatus(service.id, false);
-      addLog(`${service.name} est hors ligne: ${error.message}`, 'error');
+
+  const logsContainer = document.getElementById("logsContainer");
+  const addLog = (msg, type = "info") => {
+    const div = document.createElement("div");
+    div.className = `log-item ${type}`;
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logsContainer.prepend(div);
+  };
+
+  const updateStatus = (key, ok) => {
+    const el = document.querySelector(`.health-status-${key}`);
+    if (el) el.textContent = ok ? "✅" : "❌";
+    const indicator = document.querySelector(`.status-indicator[data-service='${key}'] .status-dot`);
+    if (indicator) {
+      indicator.style.backgroundColor = ok ? "#00c853" : "#d32f2f";
     }
-  }
-  
-  showToast('Vérification de santé terminée', 'info');
+  };
+
+  const results = await Promise.all(
+    agents.map(async ({ key, name, url }) => {
+      try {
+        const resp = await fetch(url);
+        updateStatus(key, resp.ok);
+        addLog(`${name}: ${resp.ok ? "OK" : "ERREUR"}`, resp.ok ? "success" : "error");
+        return { name, ok: resp.ok };
+      } catch (err) {
+        updateStatus(key, false);
+        addLog(`${name}: ${err.message}`, "error");
+        return { name, ok: false };
+      }
+    })
+  );
+
+  const toastContainer = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = "toast info";
+  toast.textContent =
+    "Résultat Health Check:\n" +
+    results.map(r => `${r.name}: ${r.ok ? "✅ OK" : "❌ ERREUR"}`).join("\n");
+  toastContainer.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
 }
+
 
 function updateServiceStatus(serviceId, isConnected) {
   const indicator = document.querySelector(`.status-indicator[data-service="${serviceId}"]`);
