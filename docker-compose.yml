@@ -1,52 +1,104 @@
-version: '3.9'
+#version: '3.9'
 
 services:
+  # NOTE: If you want GPU support inside these containers, you must:
+  # 1) Ensure the host has a compatible NVIDIA driver and (on Windows) WSL2 GPU support.
+  # 2) Install and configure the NVIDIA Container Toolkit (nvidia-container-toolkit) on the host
+  #    or enable Docker Desktop's GPU integration for WSL2.
+  # 3) Use an image that includes CUDA runtime libs and install `onnxruntime-gpu` with a matching
+  #    CUDA version inside the image.
+  #
+  # To enable GPU for a service, uncomment the `device_requests` block below for that service.
+  # Example quick check inside the built container:
+  #   python -c "import onnxruntime as ort; print(ort.get_available_providers())"
+  # Expected providers when GPU is available: ['CUDAExecutionProvider', 'CPUExecutionProvider']
+
   mcp-server:
     build: ./server
     container_name: mcp-server
+    restart: always
     ports:
       - "8000:8000"
     networks:
       - mcpnet
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./server
+          target: /app
 
   agent-a:
     build: ./agent
+    restart: always
     container_name: agent-a
     environment:
-      - AGENT_NAME=AgentA
-      - RAG_PATH=/rag_data/agent_a
+    - AGENT_NAME=AgentA
+    - RAG_PATH=/rag_data/agent_a
+    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
     volumes:
       - ./rag_data/agent_a:/rag_data/agent_a
     depends_on:
       - mcp-server
     networks:
       - mcpnet
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./agent
+          target: /app
+    # To request a GPU from the host, uncomment the block below and ensure host/toolkit is configured
+    #device_requests:
+    #  - driver: nvidia
+    #    count: 1
+    #    capabilities: ["gpu"]
 
   agent-b:
     build: ./agent
+    restart: always
     container_name: agent-b
     environment:
-      - AGENT_NAME=AgentB
-      - RAG_PATH=/rag_data/agent_b
+    - AGENT_NAME=AgentB
+    - RAG_PATH=/rag_data/agent_b
+    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
     volumes:
       - ./rag_data/agent_b:/rag_data/agent_b
     depends_on:
       - mcp-server
     networks:
       - mcpnet
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./agent
+          target: /app
+    #device_requests:
+    #  - driver: nvidia
+    #    count: 1
+    #    capabilities: ["gpu"]
 
   agent-c:
     build: ./agent
     container_name: agent-c
+    restart: always
     environment:
-      - AGENT_NAME=AgentC
-      - RAG_PATH=/rag_data/agent_c
+    - AGENT_NAME=AgentC
+    - RAG_PATH=/rag_data/agent_c
+    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
     volumes:
       - ./rag_data/agent_c:/rag_data/agent_c
     depends_on:
       - mcp-server
     networks:
       - mcpnet
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./agent
+          target: /app
+    #device_requests:
+    #  - driver: nvidia
+    #    count: 1
+    #    capabilities: ["gpu"]
 
 networks:
   mcpnet:
