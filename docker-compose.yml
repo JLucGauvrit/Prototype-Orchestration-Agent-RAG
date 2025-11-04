@@ -14,7 +14,7 @@ services:
   # Expected providers when GPU is available: ['CUDAExecutionProvider', 'CPUExecutionProvider']
   ui-server-MCP:
     image: nginx:alpine
-    container_name: ui
+    container_name: ui-server-MCP
     restart: always
     ports:
       - "3000:80"
@@ -27,6 +27,9 @@ services:
       - agent-c
     networks:
       - mcpnet
+    deploy:
+      restart_policy:
+        condition: on-failure
     develop:
       watch:
         - action: sync+restart
