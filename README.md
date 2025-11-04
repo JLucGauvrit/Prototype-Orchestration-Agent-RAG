@@ -111,5 +111,3 @@ http://localhost:3000
 ## Licence
 
 MIT License © 2025 JLucGauvrit
-
-[1]:
