@@ -39,7 +39,7 @@ Interface graphique de débogage + architecture multi-agents RAG, orchestrée vi
 ### 1. **Build initial des images**
 
 ```bash
-docker compose build
+docker compose build --no-cache
 ```
 
 ### 2. **Démarrer en mode watch auto-sync/restart**
@@ -90,6 +90,18 @@ http://localhost:3000
   docker compose build
   docker compose up --watch
   ```
+***
+
+## ⚠️ Points de vigilance
+
+Pour l'instant, cet outil est en phase expérimentale. Voici quelques limitations à garder en tête :
+- **Performance** : Le mode `watch` peut ralentir les performances globales. Utilise-le principalement en développement.
+- **RAG basique** : L’orchestrateur RAG est un prototype simple. Pour des cas d’usage complexes, une architecture plus robuste est recommandée.
+- **Sécurité** : Ne pas utiliser en production sans audits de sécurité approfondis.
+- **Multi-user** : L’UI de debug n’est pas conçue pour un usage multi-utilisateurs simultané.
+- **Logs volumineux** : Les logs en temps réel peuvent devenir volumineux. Pensez à les nettoyer régulièrement.
+- **
+
 
 ***
 
