@@ -17,7 +17,8 @@ RUN pip install --no-cache-dir \
     sentence-transformers \
     PyPDF2 \
     pandas \
-    pyarrow
+    pyarrow \
+    mcp
 
 WORKDIR /app
 
@@ -25,6 +26,7 @@ WORKDIR /app
 COPY agent.py .
 COPY vectorisation.py .
 COPY entrypoint.sh .
+COPY mcp_agent.py .
 
 # Make the entrypoint script executable
 RUN chmod +x entrypoint.sh

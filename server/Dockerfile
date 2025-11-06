@@ -3,7 +3,7 @@ FROM python:3.13-slim
 # Installer dépendances système minimales
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential && \
-    pip install --no-cache-dir fastapi uvicorn httpx && \
+    pip install --no-cache-dir fastapi uvicorn httpx mcp && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
