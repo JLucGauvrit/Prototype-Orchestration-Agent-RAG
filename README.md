@@ -1,456 +1,423 @@
-# 🚀 Prototype Procom – Architecture MCP Multi-Agents RAG
+# 🤖 RAG Multi-Agent Orchestrator avec MCP
 
-Architecture moderne basée sur le **Model Context Protocol (MCP)** avec orchestrateur centralisé et agents RAG distribués, connectés à des outils externes (Gmail, PostgreSQL, Perplexity).
+Plateforme d'orchestration multi-agents pour l'IA générative avec Retrieval-Augmented Generation (RAG), utilisant le Model Context Protocol (MCP) pour la communication inter-agents.
 
-## 🏗️ Architecture
+## 📋 Vue d'ensemble
 
-```
-┌─────────────────────────────────────────────────────┐
-│              UI Debug (localhost:3000)              │
-└──────────────────┬──────────────────────────────────┘
-                   │ HTTP/JSON-RPC
-┌──────────────────▼──────────────────────────────────┐
-│         MCP Server Orchestrateur (port 8000)        │
-│  • Reçoit et route les requêtes                     │
-│  • Expose des outils MCP (tools)                    │
-│  • Agrège les résultats des agents                  │
-│  • Gère les ressources (resources)                  │
-└──┬────────────┬────────────┬─────────────────────────┘
-   │ MCP        │ MCP        │ MCP
-   │            │            │
-┌──▼──────┐  ┌─▼────────┐  ┌▼──────────┐
-│ Agent A │  │ Agent B  │  │ Agent C   │
-│ (5001)  │  │ (5002)   │  │ (5003)    │
-│         │  │          │  │           │
-│ RAG +   │  │ RAG +    │  │ RAG +     │
-│ Gmail   │  │ Postgres │  │ Hybride   │
-└──┬──────┘  └─┬────────┘  └┬──────────┘
-   │            │             │
-   │ MCP        │ MCP         │ MCP
-   │            │             │
-┌──▼──────┐  ┌─▼────────┐  ┌▼──────────┐
-│ Gmail   │  │PostgreSQL│  │ Gmail +   │
-│ MCP     │  │ MCP      │  │ Postgres  │
-│ Server  │  │ Server   │  │ MCP       │
-└─────────┘  └──────────┘  └───────────┘
-```
-
-## ✨ Fonctionnalités principales
-
-### 🎯 Serveur MCP Orchestrateur
-- **Distribution intelligente** des requêtes vers les agents appropriés
-- **Agrégation** des résultats multi-agents
-- **Exposition d'outils MCP** (`query_all_agents`, `query_specific_agent`)
-- **Gestion des ressources** (liste des agents disponibles)
-- **Protocole standardisé** MCP pour toutes les communications
-
-### 🤖 Agents RAG Autonomes
-- **RAG local** via ChromaDB avec vectorisation automatique
-- **Connexions MCP externes** modulaires (Gmail, PostgreSQL, etc.)
-- **Traitement contextuel** enrichi par outils externes
-- **Isolation complète** : chaque agent a ses propres connexions
-- **API FastAPI** pour communication avec l'orchestrateur
-
-### 🔌 Intégrations MCP Disponibles
-- **Gmail MCP** : recherche d'emails, envoi, marquage, gestion de dossiers
-- **PostgreSQL MCP** : requêtes SQL sécurisées, exploration de schémas
-- **Extensible** : ajout facile de nouveaux serveurs MCP (Slack, Notion, etc.)
-
-### 🎨 Interface de Debug
-- **Tests d'endpoints** en temps réel
-- **Visualisation des logs** agrégés
-- **Monitoring** de l'état des services
-- **Copie rapide** des réponses JSON
-
-## 🚀 Prérequis
-
-- **Docker Desktop** installé ([Win/Mac/Linux](https://www.docker.com/products/docker-desktop))
-- **Docker Compose** ≥ v2.22 (pour support du mode `watch`)
-- **Node.js** ≥ 18 (pour les serveurs MCP npm)
-- Un navigateur récent (Chrome, Firefox, Edge)
-
-## ⚙️ Installation
-
-### 1. Cloner le projet
+### Architecture
 
 ```
-git clone https://github.com/JLucGauvrit/Prototype-MCP-Orchestration-RAG
-cd Prototype-MCP-Orchestration-RAG
+User Interface (Web UI)
+         ↓
+Orchestrateur (FastAPI + MCP Server)
+         ↓
+    MCP Server
+    ↙   ↓    ↘
+MCP Client A   MCP Client B   MCP Client C
+    ↓              ↓              ↓
+Agent RAG 1    Agent RAG 2    Agent RAG 3
+(Gemini)      (Perplexity)   (Gemini)
+General       Current        Analysis
+    ↓              ↓              ↓
+PostgreSQL + pgvector (Base vectorielle partagée)
 ```
 
-### 2. Configuration des variables d'environnement
+### Composants
 
-Créez un fichier `.env` à la racine du projet :
+1. **Orchestrateur** (Port 8000)
+   - Interface web de monitoring et debug
+   - API FastAPI pour les requêtes utilisateur
+   - Serveur MCP pour la distribution des tâches
+   - Synthèse des réponses avec Gemini
 
-# API Keys
+2. **Agent RAG 1** - Gemini General Knowledge
+   - Spécialité: Connaissances générales
+   - LLM: Gemini 1.5 Flash
+   - Base vectorielle dédiée
+
+3. **Agent RAG 2** - Perplexity Current Events
+   - Spécialité: Actualités et données actuelles
+   - LLM: Perplexity Sonar (online)
+   - Base vectorielle dédiée
+
+4. **Agent RAG 3** - Gemini Analysis
+   - Spécialité: Analyse de données
+   - LLM: Gemini 1.5 Flash
+   - Base vectorielle dédiée
+
+5. **PostgreSQL + pgvector**
+   - Stockage des documents
+   - Recherche vectorielle avec pgvector
+   - Logs et métriques
+
+## 🚀 Installation et démarrage
+
+### Prérequis
+
+- Docker Desktop installé
+- Docker Compose v2+
+- Clés API:
+  - Google Gemini API Key
+  - Perplexity API Key (optionnel mais recommandé pour l'agent 2)
+
+### Configuration
+
+1. **Cloner et configurer**
+
+```bash
+# Créer la structure de dossiers
+mkdir -p rag-orchestration/{orchestrator,agents/{agent_1,agent_2,agent_3},shared}
+cd rag-orchestration
+
+# Copier tous les fichiers dans leur emplacement respectif
+```
+
+2. **Structure des fichiers**
 
 ```
-PERPLEXITY_API_KEY=your_perplexity_key_here
-```
-
-# Gmail MCP (Agent A et C)
-
-```
-GMAIL_API_KEY=your_gmail_api_key_here
-GMAIL_MCP_ENABLED=true
-```
-
-# PostgreSQL MCP (Agent B et C)
-```
-POSTGRES_URL=postgresql://user:password@host:5432/dbname
-POSTGRES_USER=your_postgres_user
-POSTGRES_PASSWORD=your_postgres_password
-POSTGRES_MCP_ENABLED=true
-```
-
-# Configuration MCP
-
-```
-MCP_TRANSPORT=stdio
-MCP_LOG_LEVEL=info
-```
-
-### 3. Structure du projet
-
-```
-.
-├── docker-compose.yml          # Orchestration des services
-├── .env                        # Variables d'environnement
-│
-├── server/
-│   ├── mcp_server.py          # Serveur MCP orchestrateur
+rag-orchestration/
+├── docker-compose.yml
+├── .env                          # À créer depuis .env.example
+├── init_db.sql
+├── orchestrator/
 │   ├── Dockerfile
-│   └── requirements.txt
-│
-├── agent/
-│   ├── mcp_agent.py           # Agent RAG avec clients MCP
-│   ├── vectorisation.py       # Utilitaires RAG
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── rag_data/
-│   ├── agent_a/               # Documents pour Agent A
-│   ├── agent_b/               # Documents pour Agent B
-│   └── agent_c/               # Documents pour Agent C
-│
-└── ui-MCP/
-    ├── index.html             # Interface de debug
-    ├── style.css
-    └── script.js
+│   ├── requirements.txt
+│   ├── main.py
+│   └── static/
+│       └── debug_ui.html
+├── agents/
+│   ├── agent_1/
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── agent.py
+│   ├── agent_2/
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── agent.py
+│   └── agent_3/
+│       ├── Dockerfile
+│       ├── requirements.txt
+│       └── agent.py
+└── shared/
+    ├── models.py
+    └── database.py
 ```
 
-### 4. Préparer les données RAG (optionnel)
+3. **Configuration des clés API**
 
-Placez vos documents dans les dossiers `rag_data/agent_*/` :
-- Formats supportés : `.txt`, `.pdf`, `.jsonl`, `.md`
-- Les documents seront automatiquement vectorisés au démarrage
+```bash
+# Copier le fichier d'exemple
+cp .env.example .env
 
-# Exemple : vectorisation manuelle
-
-```
-python agent/vectorisation.py --input ./rag_data/agent_a --output ./rag_data/agent_a/chroma_db
+# Éditer le fichier .env avec vos clés
+nano .env
 ```
 
-## 🐳 Lancement
-
-### Mode développement (avec hot-reload)
-
-# Build initial
-
-```
-docker compose build --no-cache
+Contenu du fichier `.env`:
+```bash
+GEMINI_API_KEY=votre_clé_gemini_ici
+PERPLEXITY_API_KEY=votre_clé_perplexity_ici
 ```
 
-# Démarrage avec watch (auto-reload sur modifications)
-docker compose up --watch
+### Démarrage
 
-Les services se rebuild et redémarrent automatiquement à chaque modification du code.
+```bash
+# Démarrer tous les services
+docker compose up --build
 
-### Mode production
+# En mode détaché
+docker compose up -d --build
 
+# Suivre les logs
+docker compose logs -f
+
+# Logs d'un service spécifique
+docker compose logs -f orchestrator
+docker compose logs -f agent-rag-1
 ```
-docker compose up -d
+
+### Premier lancement
+
+Le système initialise automatiquement:
+1. ✅ PostgreSQL avec extension pgvector
+2. ✅ Tables et index pour le RAG
+3. ✅ Documents de test pour chaque agent
+4. ✅ Enregistrement des agents auprès de l'orchestrateur
+
+## 🖥️ Utilisation
+
+### Interface Web
+
+Accédez à l'interface de monitoring:
+```
+http://localhost:8000
 ```
 
-## 🌐 Accès aux services
+Fonctionnalités:
+- 📝 Formulaire de requête
+- 🎯 État des agents en temps réel
+- 💬 Affichage des réponses agrégées
+- 📊 Logs en temps réel via WebSocket
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| **UI Debug** | http://localhost:3000 | Interface graphique de test |
-| **MCP Server** | http://localhost:8000 | Orchestrateur MCP principal |
-| **Agent A** | http://localhost:5001/health | Agent RAG + Gmail |
-| **Agent B** | http://localhost:5002/health | Agent RAG + PostgreSQL |
-| **Agent C** | http://localhost:5003/health | Agent RAG + Hybride |
+### API REST
 
-## 🧪 Tester l'architecture
-
-### Via l'interface UI (recommandé)
-
-1. Ouvrez http://localhost:3000
-2. Tapez votre question dans le champ de recherche
-3. Visualisez les réponses agrégées de tous les agents
-
-### Via curl
-
-**Interroger tous les agents :**
-
-```
-curl -X POST http://localhost:8000/query \
+**Envoyer une requête:**
+```bash
+curl -X POST http://localhost:8000/api/query \
   -H "Content-Type: application/json" \
-  -d '{"query": "Quels emails récents parlent de data federation?"}'
+  -d '{
+    "query": "What is data federation in distributed AI?"
+  }'
 ```
 
-**Interroger un agent spécifique :**
-
+**Lister les agents:**
+```bash
+curl http://localhost:8000/api/agents
 ```
-curl -X POST http://localhost:8000/query-agent \
+
+**Health check:**
+```bash
+curl http://localhost:8000/api/health
+```
+
+### Exemples de requêtes
+
+```bash
+# Connaissances générales (Agent 1)
+curl -X POST http://localhost:8000/api/query \
   -H "Content-Type: application/json" \
-  -d '{"agent": "agent-a", "query": "Recherche mes emails non lus"}'
-```
+  -d '{"query": "Explain machine learning basics"}'
 
-**Vérifier la santé des services :**
-# Orchestrateur
-```
-curl http://localhost:8000/health
-```
-# Agent A
-```
-curl http://localhost:5001/health
-```
-
-### Exemples de requêtes MCP
-
-**Lister les agents disponibles :**
-```
-curl http://localhost:8000/resources/agents
-```
-
-**Appeler un outil MCP directement :**
-```
-curl -X POST http://localhost:8000/tools/query_all_agents \
+# Actualités (Agent 2)
+curl -X POST http://localhost:8000/api/query \
   -H "Content-Type: application/json" \
-  -d '{"arguments": {"query": "Explique-moi le RAG"}}'
+  -d '{"query": "Latest developments in AI technology"}'
+
+# Analyse (Agent 3)
+curl -X POST http://localhost:8000/api/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Analyze performance metrics of distributed systems"}'
 ```
+
+## 📚 Ingestion de documents
+
+### Via l'API d'un agent
+
+```bash
+curl -X POST http://localhost:8080/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Your document content here...",
+    "metadata": {
+      "source": "manual",
+      "topic": "AI",
+      "date": "2025-11-07"
+    }
+  }'
+```
+
+### Via la base de données
+
+```sql
+-- Se connecter à PostgreSQL
+docker exec -it rag-postgres psql -U postgres -d rag_db
+
+-- Insérer un document
+INSERT INTO documents (agent_id, content, metadata)
+VALUES (
+  'agent-1',
+  'New knowledge to index',
+  '{"source": "manual", "topic": "test"}'
+);
+```
+
 ## 🔧 Configuration avancée
 
-### Ajouter un nouvel agent
+### Ajuster le nombre d'agents
 
-1. **Modifiez `docker-compose.yml`** :
-```
-agent-d:
-  build: ./agent
-  container_name: agent-d
-  ports:
-    - "5004:5000"
+Modifier `docker-compose.yml` pour ajouter/retirer des agents:
+
+```yaml
+agent-rag-4:
+  build:
+    context: ./agents/agent_4
   environment:
-    - AGENT_NAME=AgentD
-    - RAG_PATH=/rag_data/agent_d
-    # Ajoutez vos connexions MCP
-  volumes:
-    - ./rag_data/agent_d:/rag_data/agent_d
+    - AGENT_ID=agent-4
+    - AGENT_NAME=Custom Agent
+    - AGENT_SPECIALTY=technical
 ```
 
-2. **Mettez à jour `server/mcp_server.py`** :
+### Modifier les LLM utilisés
 
-```
-AGENTS = {
-    "agent-a": "http://agent-a:5000",
-    "agent-b": "http://agent-b:5000",
-    "agent-c": "http://agent-c:5000",
-    "agent-d": "http://agent-d:5000"  # Nouveau
-}
-```
+Dans `agents/agent_X/agent.py`, modifier:
+- `gemini_model` pour changer le modèle Gemini
+- `query_perplexity()` pour utiliser un autre modèle Perplexity
 
-### Connecter un nouvel outil MCP
+### Augmenter la capacité vectorielle
 
-Dans `agent/mcp_agent.py`, ajoutez la connexion :
+Dans `init_db.sql`:
+```sql
+-- Augmenter la dimension des embeddings
+embedding vector(1536)  -- Modifier selon votre modèle
 
-```
-# Exemple : connexion à Slack MCP
-if os.getenv("SLACK_MCP_ENABLED") == "true":
-    server_params = StdioServerParameters(
-        command="npx",
-        args=["-y", "@modelcontextprotocol/server-slack"],
-        env={"SLACK_TOKEN": os.getenv("SLACK_TOKEN", "")}
-    )
-    
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            mcp_servers["slack"] = session
+-- Ajuster les paramètres de l'index
+CREATE INDEX ... WITH (lists = 100);  -- Augmenter pour plus de données
 ```
 
-## 🛠️ Résolution des problèmes
+## 📊 Monitoring et Debug
 
-### Erreur : "MCP server not responding"
+### Logs centralisés
 
-**Cause :** Le serveur MCP n'a pas démarré correctement.
+```bash
+# Tous les services
+docker compose logs -f
 
-**Solution :**
-# Vérifiez les logs
-```
-docker logs mcp-server
-```
+# Filtrer par service
+docker compose logs -f orchestrator
+docker compose logs -f postgres
 
-# Redémarrez le service
-```
-docker compose restart mcp-server
-```
-
-### Erreur : "Gmail MCP connection failed"
-
-**Cause :** Clé API Gmail invalide ou non configurée.
-
-**Solution :**
-1. Vérifiez que `GMAIL_API_KEY` est bien défini dans `.env`
-2. Assurez-vous que l'API Gmail est activée dans Google Cloud Console
-3. Vérifiez les logs de l'agent :
-docker logs agent-a
-
-### Erreur : "PostgreSQL connection refused"
-
-**Cause :** URL de connexion PostgreSQL incorrecte.
-
-**Solution :**
-# Testez la connexion manuellement
-```
-docker exec -it agent-b python -c "import psycopg2; psycopg2.connect('$POSTGRES_URL')"
+# Dernières 100 lignes
+docker compose logs --tail=100 -f
 ```
 
-# Vérifiez le format de POSTGRES_URL dans .env
-# Format attendu : `postgresql://user:password@host:5432/database`
+### Métriques dans PostgreSQL
 
-### Erreur : "ChromaDB collection not found"
+```sql
+-- Voir les logs des requêtes
+SELECT * FROM mcp_logs ORDER BY created_at DESC LIMIT 10;
 
-**Cause :** Les données RAG n'ont pas été vectorisées.
+-- Stats des agents
+SELECT 
+  agent_id, 
+  agent_name, 
+  total_queries, 
+  avg_response_time_ms,
+  status
+FROM agent_status;
 
-**Solution :**
-# Vectorisez manuellement
-
-```
-docker exec -it agent-a python vectorisation.py --input /rag_data/agent_a
-```
-
-### Performance lente avec mode watch
-
-**Cause :** Le mode watch surveille tous les fichiers.
-
-**Solution :**
-```
-# Utilisez le mode standard en développement
-docker compose up
-
-# Ou ajoutez des exclusions dans docker-compose.yml
-watch:
-  - path: ./agent
-    action: rebuild
-    ignore:
-      - "**/__pycache__"
-      - "**/.pytest_cache"
+-- Compter les documents par agent
+SELECT agent_id, COUNT(*) 
+FROM documents 
+GROUP BY agent_id;
 ```
 
-## ⚠️ Limitations et considérations
+### WebSocket monitoring
 
-### Phase expérimentale
-- **Architecture en évolution** : Le protocole MCP évolue rapidement
-- **Tests limités** : Testez intensivement avant usage en production
-- **Sécurité** : Auditez les connexions MCP externes avant déploiement
+L'interface web utilise WebSocket pour le monitoring temps réel:
+- Connexion automatique à `ws://localhost:8000/ws/monitor`
+- Événements: `agent_registered`, `query_received`, `query_completed`
 
-### Performance
-- **Latence** : Les appels MCP en cascade ajoutent de la latence
-- **Timeouts** : Configurez des timeouts appropriés (120s recommandé)
-- **Cache** : Implémentez un cache Redis pour les requêtes fréquentes
+## 🛠️ Développement
 
-### Scalabilité
-- **Agents limités** : Architecture actuelle limitée à ~10 agents
-- **Pas de load balancing** : Implémentez Nginx/HAProxy pour production
-- **État éphémère** : Les données ChromaDB sont perdues au redémarrage des conteneurs
+### Hot reload activé
+
+Docker Compose watch est configuré pour le développement:
+- Modification de `.py` → Rechargement automatique
+- Modification de `requirements.txt` → Rebuild du container
+
+```bash
+# Mode développement avec watch
+docker compose watch
+```
+
+### Tests
+
+```bash
+# Tester un agent directement
+curl http://localhost:8080/health
+
+# Tester l'orchestrateur
+curl http://localhost:8000/api/health
+```
+
+## 🐛 Dépannage
+
+### Les agents ne s'enregistrent pas
+
+```bash
+# Vérifier les logs de l'orchestrateur
+docker compose logs orchestrator
+
+# Vérifier la connectivité réseau
+docker compose exec agent-rag-1 ping orchestrator
+
+# Redémarrer un agent
+docker compose restart agent-rag-1
+```
+
+### Erreurs PostgreSQL
+
+```bash
+# Vérifier l'état
+docker compose exec postgres pg_isready -U postgres
+
+# Se connecter manuellement
+docker compose exec postgres psql -U postgres -d rag_db
+
+# Réinitialiser complètement
+docker compose down -v
+docker compose up --build
+```
+
+### Problèmes de performance
+
+```sql
+-- Vérifier l'utilisation de l'index vectoriel
+EXPLAIN ANALYZE 
+SELECT * FROM documents 
+WHERE agent_id = 'agent-1' 
+ORDER BY embedding <=> '[1,2,3...]'::vector 
+LIMIT 5;
+
+-- Réindexer si nécessaire
+REINDEX INDEX documents_embedding_idx;
+```
+
+## 📝 Notes importantes
+
+### Limitations
+
+- **Pas de persistance entre redémarrages** sans volumes Docker
+- **Recherche vectorielle** limitée par la RAM pour de gros volumes
+- **MCP simplifié** - implémentation HTTP au lieu du protocole complet
 
 ### Sécurité
-- **Clés API exposées** : Utilisez Docker secrets en production
-- **CORS permissif** : Restreignez les origins en production
-- **SQL Injection** : L'agent PostgreSQL nécessite une validation stricte
 
-## 📚 Ressources et documentation
+⚠️ **Production:**
+- Changer les mots de passe PostgreSQL
+- Activer HTTPS
+- Restreindre CORS
+- Ajouter authentification API
+- Chiffrer les clés API
 
-### Model Context Protocol (MCP)
-- [Documentation officielle MCP](https://modelcontextprotocol.io/)
-- [Spécification MCP](https://modelcontextprotocol.io/specification/2025-03-26/architecture)
-- [Tutoriel : Build Your First MCP Server](https://towardsdatascience.com/model-context-protocol-mcp-tutorial-build-your-first-mcp-server-in-6-steps/)
+### Performance
 
-### Serveurs MCP utilisés
-- [Gmail MCP Server](https://github.com/jeremyjordan/mcp-gmail) - Intégration Gmail
-- [PostgreSQL MCP Server](https://github.com/crystaldba/postgres-mcp) - Intégration PostgreSQL
-- [MCP Servers Directory](https://modelcontextprotocol.io/examples) - Catalogue officiel
+- **Recherche vectorielle** : O(n) sans index, O(log n) avec index IVFFlat
+- **Concurrence** : FastAPI gère async nativement
+- **Scaling** : Augmenter `lists` dans l'index pgvector pour plus de documents
 
-### RAG et Architecture
-- [Integrating Agentic RAG with MCP](https://becomingahacker.org/integrating-agentic-rag-with-mcp-servers-technical-implementation-guide-1aba8fd4e442)
-- [MCP Server Patterns](https://dev.to/codanyks/mcp-server-wrap-up-patterns-libraries-scaling-context-1f02)
-- [Security-First MCP Architecture](https://prefactor.tech/blog/security-first-mcp-architecture-patterns)
+## 🎯 Roadmap
 
-### Technologies utilisées
-- [FastAPI](https://fastapi.tiangolo.com/) - Framework web Python
-- [ChromaDB](https://www.trychroma.com/) - Base vectorielle pour RAG
-- [Docker Compose](https://docs.docker.com/compose/) - Orchestration multi-conteneurs
-- [Sentence Transformers](https://www.sbert.net/) - Embeddings de texte
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! Pour contribuer :
-
-1. Forkez le projet
-2. Créez une branche (`git checkout -b feature/AmazingFeature`)
-3. Committez vos changements (`git commit -m 'Add AmazingFeature'`)
-4. Pushez vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrez une Pull Request
-
-## 📝 Roadmap
-
-### Version 0.2 (Q1 2025)
-- [ ] Support de serveurs MCP additionnels (Notion, Slack, GitHub)
-- [ ] Implémentation d'un cache Redis pour améliorer les performances
-- [ ] Interface UI améliorée avec visualisation de graphes d'agents
-- [ ] Système de logging centralisé (ELK stack)
-
-### Version 0.3 (Q2 2025)
-- [ ] Authentification et autorisation (JWT tokens)
-- [ ] Load balancing des agents avec Nginx
-- [ ] Persistance des données ChromaDB avec volumes Docker
-- [ ] Métriques Prometheus et dashboards Grafana
-
-### Version 1.0 (Q3 2025)
-- [ ] Déploiement Kubernetes avec Helm charts
-- [ ] Auto-scaling des agents basé sur la charge
-- [ ] Support multi-tenancy
-- [ ] Documentation API OpenAPI complète
+- [ ] Implémentation complète du protocole MCP
+- [ ] Support de modèles locaux (Ollama)
+- [ ] Interface d'administration pour gérer les documents
+- [ ] Métriques Prometheus/Grafana
+- [ ] Support multi-utilisateurs avec auth
+- [ ] Cache Redis pour les embeddings fréquents
+- [ ] Support de fichiers PDF/DOCX pour l'ingestion
 
 ## 📄 Licence
 
-MIT License © 2025 JLucGauvrit
+MIT License - Libre d'utilisation pour vos projets
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## 🤝 Contribution
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Ce prototype a été créé pour démonstration. N'hésitez pas à l'adapter à vos besoins !
 
-## 👨‍💻 Auteur
+## 📞 Support
 
-**Jean-Luc Gauvrit** - [@JLucGauvrit](https://github.com/JLucGauvrit)
-
-## 🙏 Remerciements
-
-- [Anthropic](https://www.anthropic.com/) pour le développement du Model Context Protocol
-- La communauté MCP pour les serveurs et exemples open source
-- [Perplexity AI](https://www.perplexity.ai/) pour l'API de génération de contenu
-
----
-
-**⭐ Si ce projet vous est utile, n'hésitez pas à lui donner une étoile !**
-
-## Licence
-MIT License © 2025 JLucGauvrit
+Pour toute question sur l'architecture MCP ou le RAG distribué, consultez:
+- [Documentation MCP](https://modelcontextprotocol.io)
+- [pgvector GitHub](https://github.com/pgvector/pgvector)
+- [Gemini API](https://ai.google.dev)
+- [Perplexity API](https://docs.perplexity.ai)

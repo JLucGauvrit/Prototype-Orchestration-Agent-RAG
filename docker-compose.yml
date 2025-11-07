@@ -1,93 +1,80 @@
-version: '3.9'
+# RAG Multi-Agent avec MCP - Version Simplifiée
+# Architecture: Orchestrateur (MCP Client) → Agents RAG (MCP Servers)
+
+#version: '3.8'
 
 services:
-  # Serveur MCP Orchestrateur
-  mcp-server:
-    build: ./server
-    container_name: mcp-server
-    restart: always
+  # PostgreSQL avec pgvector
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: rag-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rag_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - rag-network
+
+  # Interface utilisateur
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: rag-ui
+    ports:
+      - "8080:80"
+    develop:
+      watch:
+        - path: ./ui
+          target: /usr/share/nginx/html
+          action: sync+restart
+    networks:
+      - rag-network
+
+  # Orchestrateur - FastAPI + MCP Client
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    container_name: rag-orchestrator
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rag_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - AGENT1_URL=http://agent-1:8001
+      - AGENT2_URL=http://agent-2:8002
+      - AGENT3_URL=http://agent-3:8003
     ports:
       - "8000:8000"
-    environment:
-      - MCP_TRANSPORT=stdio
-    networks:
-      - mcpnet
-
-  # Agent A avec connexions MCP Gmail
-  agent-a:
-    build: ./agent
-    container_name: agent-a
-    restart: always
-    ports:
-      - "5001:5000"
-    environment:
-      - AGENT_NAME=AgentA
-      - RAG_PATH=/rag_data/agent_a
-      - GMAIL_MCP_ENABLED=true
-      - GMAIL_API_KEY=${GMAIL_API_KEY}
-    volumes:
-      - ./rag_data/agent_a:/rag_data/agent_a
     depends_on:
-      - mcp-server
-    networks:
-      - mcpnet
-
-  # Agent B avec connexions MCP PostgreSQL
-  agent-b:
-    build: ./agent
-    container_name: agent-b
-    restart: always
-    ports:
-      - "5002:5000"
-    environment:
-      - AGENT_NAME=AgentB
-      - RAG_PATH=/rag_data/agent_b
-      - POSTGRES_MCP_ENABLED=true
-      - POSTGRES_URL=${POSTGRES_URL}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      postgres:
+        condition: service_healthy
     volumes:
-      - ./rag_data/agent_b:/rag_data/agent_b
-    depends_on:
-      - mcp-server
+      - ./orchestrator:/app
     networks:
-      - mcpnet
+      - rag-network
 
-  # Agent C hybride (Gmail + PostgreSQL)
-  agent-c:
-    build: ./agent
-    container_name: agent-c
-    restart: always
-    ports:
-      - "5003:5000"
-    environment:
-      - AGENT_NAME=AgentC
-      - RAG_PATH=/rag_data/agent_c
-      - GMAIL_MCP_ENABLED=true
-      - POSTGRES_MCP_ENABLED=true
-      - GMAIL_API_KEY=${GMAIL_API_KEY}
-      - POSTGRES_URL=${POSTGRES_URL}
-    volumes:
-      - ./rag_data/agent_c:/rag_data/agent_c
-    depends_on:
-      - mcp-server
-    networks:
-      - mcpnet
 
-  # UI Debug
-  ui-server-MCP:
-    image: nginx:alpine
-    container_name: ui-server-MCP
-    restart: always
-    ports:
-      - "3000:80"
-    volumes:
-      - ./ui-MCP:/usr/share/nginx/html:ro
-    depends_on:
-      - mcp-server
-    networks:
-      - mcpnet
+
+
+volumes:
+  postgres_data:
 
 networks:
-  mcpnet:
+  frontend:
+    driver: bridge
+  rag-network:
     driver: bridge

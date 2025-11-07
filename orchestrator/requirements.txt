@@ -1,0 +1,13 @@
+fastapi
+fastapi-cors
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+psycopg2-binary
+sqlalchemy
+pgvector
+google-generativeai
+httpx
+fastmcp
+python-dotenv

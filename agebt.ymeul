@@ -1,0 +1,106 @@
+  # Agent MCP 1 - Gemini General Knowledge
+  agent-1:
+    build:
+      context: ./agent_mcp
+      dockerfile: Dockerfile
+    container_name: rag-agent-1
+    environment:
+      - AGENT_ID=agent-1
+      - AGENT_NAME=Gemini General
+      - AGENT_SPECIALTY=general_knowledge
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rag_db
+      - MCP_PORT=8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./agent_mcp:/app
+    networks:
+      - rag-network
+
+  # Agent MCP 2 - Perplexity Current Events
+  agent-2:
+    build:
+      context: ./agent_mcp
+      dockerfile: Dockerfile
+    container_name: rag-agent-2
+    environment:
+      - AGENT_ID=agent-2
+      - AGENT_NAME=Perplexity Current
+      - AGENT_SPECIALTY=current_events
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rag_db
+      - MCP_PORT=8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./agent_mcp:/app
+    networks:
+      - rag-network
+
+  # Agent MCP 3 - Gemini Analysis
+  agent-3:
+    build:
+      context: ./agent_mcp
+      dockerfile: Dockerfile
+    container_name: rag-agent-3
+    environment:
+      - AGENT_ID=agent-3
+      - AGENT_NAME=Gemini Analysis
+      - AGENT_SPECIALTY=data_analysis
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rag_db
+      - MCP_PORT=8003
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./agent_mcp:/app
+    networks:
+      - rag-network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      agent-1:
+        condition: service_started
+      agent-2:
+        condition: service_started
+      agent-3:
+        condition: service_started
