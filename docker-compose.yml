@@ -5,6 +5,7 @@ services:
   ui:
     build: ./ui
     container_name: ui
+    restart: always
     ports:
       - "8080:8080"
     networks:
@@ -23,13 +24,19 @@ services:
   orchestrator:
     build: ./orchestrator
     container_name: orchestrator
+    restart: always
     ports:
       - "8000:8000"
     networks:
       - frontend
       - backend
+    develop:
+      watch:
+        - path: ./orchestrator
+          target: /app
+          action: sync+restart
     volumes:
-      - ./orchestrator:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - MCP_SERVER_URL=http://mcp-server:7000
       - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
@@ -40,12 +47,16 @@ services:
   mcp-server:
     build: ./mcp/server
     container_name: mcp-server
+    restart: always
     ports:
       - "7000:7000"
     networks:
       - backend
-    volumes:
-      - ./mcp/server:/app
+    develop:
+      watch:
+        - path: ./mcp/server
+          target: /app
+          action: sync+restart
     environment:
       - BACKEND_NETWORK=backend
 
@@ -56,7 +67,6 @@ services:
     networks:
       - backend
     volumes:
-      - ./mcp/client:/app
       - rag_data:/app/data
     environment:
       - MCP_SERVER_URL=http://mcp-server:7000
@@ -64,7 +74,6 @@ services:
       - AGENT_ID=template
     depends_on:
       - mcp-server
-      - agent-rag-template
 
   # === Exemple d’un agent RAG (un par instance) ===
   agent-rag-template:
@@ -78,9 +87,9 @@ services:
       - AGENT_ID=template
       - DATA_PATH=/app/data/agent_template
       - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
-
     depends_on:
       - postgres
+      - mcp-server
 
   # === Base de données pour stockage vectorisé ===
   postgres:
@@ -107,4 +116,3 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: true

@@ -6,9 +6,7 @@ WORKDIR /usr/share/nginx/html
 RUN mkdir -p styles js
 
 # Copie des fichiers statiques
-COPY index.html .
-COPY styles/ styles/
-COPY js/ js/
+COPY . .
 
 # Configuration nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
