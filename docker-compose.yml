@@ -1,80 +1,110 @@
-# RAG Multi-Agent avec MCP - Version Simplifiée
-# Architecture: Orchestrateur (MCP Client) → Agents RAG (MCP Servers)
-
-#version: '3.8'
+#version: "3.9"
 
 services:
-  # PostgreSQL avec pgvector
-  postgres:
-    image: pgvector/pgvector:pg17
-    container_name: rag-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: rag_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - rag-network
-
-  # Interface utilisateur
+  # === Interface utilisateur ===
   ui:
-    build:
-      context: ./ui
-      dockerfile: Dockerfile
-    container_name: rag-ui
+    build: ./ui
+    container_name: ui
     ports:
-      - "8080:80"
+      - "8080:8080"
+    networks:
+      - frontend
+    depends_on:
+      - orchestrator
+    environment:
+      - ORCHESTRATOR_URL=http://orchestrator:8000
     develop:
       watch:
         - path: ./ui
           target: /usr/share/nginx/html
           action: sync+restart
-    networks:
-      - rag-network
 
-  # Orchestrateur - FastAPI + MCP Client
+  # === Orchestrateur principal (FastAPI) ===
   orchestrator:
-    build:
-      context: ./orchestrator
-      dockerfile: Dockerfile
-    container_name: rag-orchestrator
-    environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=rag_db
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - AGENT1_URL=http://agent-1:8001
-      - AGENT2_URL=http://agent-2:8002
-      - AGENT3_URL=http://agent-3:8003
+    build: ./orchestrator
+    container_name: orchestrator
     ports:
       - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    networks:
+      - frontend
+      - backend
     volumes:
       - ./orchestrator:/app
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:7000
+      - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
+    depends_on:
+      - mcp-server
+
+  # === Serveur MCP (coordination des clients MCP et agents RAG) ===
+  mcp-server:
+    build: ./mcp/server
+    container_name: mcp-server
+    ports:
+      - "7000:7000"
     networks:
-      - rag-network
+      - backend
+    volumes:
+      - ./mcp/server:/app
+    environment:
+      - BACKEND_NETWORK=backend
 
+  # === Exemple d’un client MCP (peut être dupliqué dynamiquement) ===
+  mcp-client-template:
+    build: ./mcp/client
+    container_name: mcp-client-template
+    networks:
+      - backend
+    volumes:
+      - ./mcp/client:/app
+      - rag_data:/app/data
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:7000
+      - RAG_AGENT_URL=http://agent-rag-template:9000
+      - AGENT_ID=template
+    depends_on:
+      - mcp-server
+      - agent-rag-template
 
+  # === Exemple d’un agent RAG (un par instance) ===
+  agent-rag-template:
+    build: ./agents/rag
+    container_name: agent-rag-template
+    networks:
+      - backend
+    volumes:
+      - rag_data:/app/data
+    environment:
+      - AGENT_ID=template
+      - DATA_PATH=/app/data/agent_template
+      - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
 
+    depends_on:
+      - postgres
 
+  # === Base de données pour stockage vectorisé ===
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: always
+    networks:
+      - backend
+    environment:
+      - POSTGRES_USER=rag_user
+      - POSTGRES_PASSWORD=rag_pass
+      - POSTGRES_DB=rag_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+# === Volumes persistants ===
 volumes:
-  postgres_data:
+  rag_data:
+  pg_data:
 
+# === Réseaux ===
 networks:
   frontend:
     driver: bridge
-  rag-network:
+  backend:
     driver: bridge
+    internal: true
