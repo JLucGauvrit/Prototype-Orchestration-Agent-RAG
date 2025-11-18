@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP RAG Orchestrator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-brain"></i>
+                <span>MCP RAG Orchestrator</span>
+            </div>
+            <div class="navbar-stats">
+                <div class="stat">
+                    <i class="fas fa-robot"></i>
+                    <span id="agentCount">0</span> Agents
+                </div>
+                <div class="stat online">
+                    <i class="fas fa-circle"></i>
+                    <span id="onlineCount">0</span> En ligne
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Sidebar - Agents Management -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-robot"></i> Agents</h2>
+                <button id="createAgentBtn" class="btn-icon" title="Créer un agent">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div class="agents-list" id="agentsList">
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>Aucun agent</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content">
+            <!-- Query Section -->
+            <section class="card query-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-comments"></i> Envoyer une requête</h3>
+                </div>
+                <form id="queryForm" class="card-body">
+                    <textarea 
+                        id="queryInput" 
+                        placeholder="Posez votre question aux agents RAG..."
+                        rows="6"
+                    ></textarea>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Envoyer
+                        </button>
+                        <button type="button" id="clearBtn" class="btn btn-secondary">
+                            <i class="fas fa-trash"></i> Effacer
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Results Section -->
+            <section class="card results-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Résultats</h3>
+                    <div class="tab-group">
+                        <button class="tab active" data-tab="formatted">
+                            <i class="fas fa-eye"></i> Formaté
+                        </button>
+                        <button class="tab" data-tab="raw">
+                            <i class="fas fa-code"></i> JSON
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formatted Results -->
+                <div id="formattedTab" class="tab-content active">
+                    <div class="empty-state full">
+                        <i class="fas fa-inbox"></i>
+                        <p>Aucun résultat</p>
+                        <small>Envoyez une requête pour voir les résultats</small>
+                    </div>
+                </div>
+
+                <!-- Raw JSON Results -->
+                <div id="rawTab" class="tab-content">
+                    <pre><code id="jsonOutput">{}</code></pre>
+                </div>
+            </section>
+
+            <!-- Alerts -->
+            <div id="alertContainer" class="alerts"></div>
+        </main>
+    </div>
+
+    <!-- Modal: Create Agent -->
+    <div id="createModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-robot"></i> Créer un nouvel agent</h3>
+                <button class="btn-close" id="closeModal">×</button>
+            </div>
+            <form id="createAgentForm">
+                <div class="form-group">
+                    <label for="agentName">Nom de l'agent *</label>
+                    <input 
+                        type="text" 
+                        id="agentName" 
+                        placeholder="ex: agent-finance"
+                        pattern="^[a-z0-9\-]+$"
+                        required
+                    >
+                    <small>Minuscules, chiffres et tirets uniquement</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="agentType">Type d'agent *</label>
+                    <select id="agentType" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option value="standard">Standard (RAG)</option>
+                        <option value="gmail">Gmail MCP</option>
+                        <option value="postgres">PostgreSQL MCP</option>
+                        <option value="hybrid">Hybride (Gmail + DB)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="agentDesc">Description</label>
+                    <textarea 
+                        id="agentDesc" 
+                        placeholder="Décrivez le rôle de cet agent..."
+                        rows="3"
+                    ></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Créer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

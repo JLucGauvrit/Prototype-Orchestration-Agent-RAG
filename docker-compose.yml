@@ -1,126 +1,118 @@
-#version: '3.9'
+#version: "3.9"
 
 services:
-  # NOTE: If you want GPU support inside these containers, you must:
-  # 1) Ensure the host has a compatible NVIDIA driver and (on Windows) WSL2 GPU support.
-  # 2) Install and configure the NVIDIA Container Toolkit (nvidia-container-toolkit) on the host
-  #    or enable Docker Desktop's GPU integration for WSL2.
-  # 3) Use an image that includes CUDA runtime libs and install `onnxruntime-gpu` with a matching
-  #    CUDA version inside the image.
-  #
-  # To enable GPU for a service, uncomment the `device_requests` block below for that service.
-  # Example quick check inside the built container:
-  #   python -c "import onnxruntime as ort; print(ort.get_available_providers())"
-  # Expected providers when GPU is available: ['CUDAExecutionProvider', 'CPUExecutionProvider']
-  ui-server-MCP:
-    image: nginx:alpine
-    container_name: ui-server-MCP
+  # === Interface utilisateur ===
+  ui:
+    build: ./ui
+    container_name: ui
     restart: always
     ports:
-      - "3000:80"
-    volumes:
-      - ./ui-MCP:/usr/share/nginx/html:ro
-    depends_on:
-      - mcp-server
-      - agent-a
-      - agent-b
-      - agent-c
+      - "8080:8080"
     networks:
-      - mcpnet
+      - frontend
+    depends_on:
+      - orchestrator
+    environment:
+      - ORCHESTRATOR_URL=http://orchestrator:8000
+    develop:
+      watch:
+        - path: ./ui
+          target: /usr/share/nginx/html
+          action: sync+restart
 
-  mcp-server:
-    build: ./server
-    container_name: mcp-server
+  # === Orchestrateur principal (FastAPI) ===
+  orchestrator:
+    build: ./orchestrator
+    container_name: orchestrator
     restart: always
     ports:
       - "8000:8000"
     networks:
-      - mcpnet
+      - frontend
+      - backend
     develop:
       watch:
-        - action: sync+restart
-          path: ./server
+        - path: ./orchestrator
           target: /app
-
-  agent-a:
-    build: ./agent
-    restart: always
-    container_name: agent-a
-    ports:
-    - "5001:5000"
-    environment:
-    - AGENT_NAME=AgentA
-    - RAG_PATH=/rag_data/agent_a
-    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+          action: sync+restart
     volumes:
-      - ./rag_data/agent_a:/rag_data/agent_a
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:7000
+      - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
     depends_on:
       - mcp-server
-    networks:
-      - mcpnet
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./agent
-          target: /app
-    # To request a GPU from the host, uncomment the block below and ensure host/toolkit is configured
-    #device_requests:
-    #  - driver: nvidia
-    #    count: 1
-    #    capabilities: ["gpu"]
 
-  agent-b:
-    build: ./agent
-    restart: always
-    container_name: agent-b
-    ports:
-    - "5002:5000"
-    environment:
-    - AGENT_NAME=AgentB
-    - RAG_PATH=/rag_data/agent_b
-    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
-    volumes:
-      - ./rag_data/agent_b:/rag_data/agent_b
-    depends_on:
-      - mcp-server
-    networks:
-      - mcpnet
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./agent
-          target: /app
-    #device_requests:
-    #  - driver: nvidia
-    #    count: 1
-    #    capabilities: ["gpu"]
-
-  agent-c:
-    build: ./agent
-    container_name: agent-c
+  # === Serveur MCP (coordination des clients MCP et agents RAG) ===
+  mcp-server:
+    build: ./mcp/server
+    container_name: mcp-server
     restart: always
     ports:
-    - "5003:5000"
-    environment:
-    - AGENT_NAME=AgentC
-    - RAG_PATH=/rag_data/agent_c
-    - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
-    volumes:
-      - ./rag_data/agent_c:/rag_data/agent_c
-    depends_on:
-      - mcp-server
+      - "7000:7000"
     networks:
-      - mcpnet
+      - backend
     develop:
       watch:
-        - action: sync+restart
-          path: ./agent
+        - path: ./mcp/server
           target: /app
-    #device_requests:
-    #  - driver: nvidia
-    #    count: 1
-    #    capabilities: ["gpu"]
+          action: sync+restart
+    environment:
+      - BACKEND_NETWORK=backend
 
+  # === Exemple d’un client MCP (peut être dupliqué dynamiquement) ===
+  mcp-client-template:
+    build: ./mcp/client
+    container_name: mcp-client-template
+    networks:
+      - backend
+    volumes:
+      - rag_data:/app/data
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:7000
+      - RAG_AGENT_URL=http://agent-rag-template:9000
+      - AGENT_ID=template
+    depends_on:
+      - mcp-server
+
+  # === Exemple d’un agent RAG (un par instance) ===
+  agent-rag-template:
+    build: ./agents/rag
+    container_name: agent-rag-template
+    networks:
+      - backend
+    volumes:
+      - rag_data:/app/data
+    environment:
+      - AGENT_ID=template
+      - DATA_PATH=/app/data/agent_template
+      - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
+    depends_on:
+      - postgres
+      - mcp-server
+
+  # === Base de données pour stockage vectorisé ===
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: always
+    networks:
+      - backend
+    environment:
+      - POSTGRES_USER=rag_user
+      - POSTGRES_PASSWORD=rag_pass
+      - POSTGRES_DB=rag_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+# === Volumes persistants ===
+volumes:
+  rag_data:
+  pg_data:
+
+# === Réseaux ===
 networks:
-  mcpnet:
+  frontend:
+    driver: bridge
+  backend:
     driver: bridge
