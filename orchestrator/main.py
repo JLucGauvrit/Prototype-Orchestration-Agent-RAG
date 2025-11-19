@@ -1,82 +1,62 @@
-import logging
+import asyncio
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import docker
+from pydantic import BaseModel
+from contextlib import asynccontextmanager
 
-# Configuration du logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Importe le client adapté pour l'API
+from orchestrator import mcp_adapter
+
+
+class QueryRequest(BaseModel):
+    query: str    
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Gère le démarrage et l'arrêt des ressources (connexion MCP).
+    """
+    try:
+        await mcp_adapter.connect_to_server("./mcp_server_rag.py")
+        print("API FastAPI et Client MCP initialisés.")
+        yield
+    except Exception as e:
+        print(f"Échec critique au démarrage: {e}")
+        raise
+    finally:
+        await mcp_adapter.cleanup()
+        print("API FastAPI et Client MCP arrêtés.")
 
 app = FastAPI(
-    title="Orchestrator API",
-    description="API pour la gestion des agents RAG",
-    version="1.0.0"
+    title="Perplexity MCP Agent API",
+    description="Endpoint pour interroger l'agent Perplexity Tool-Using (RAG Agent via MCP)",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# Configuration CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # En production, spécifier les origines exactes
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-try:
-    client = docker.from_env()
-    logger.info("Connexion Docker établie avec succès")
-except Exception as e:
-    logger.error(f"Erreur lors de la connexion à Docker: {e}")
-    raise
+@app.post("/chat")
+async def chat_endpoint(request: QueryRequest):
 
-@app.get("/")
-def read_root():
-    """Route racine pour vérifier que l'API est en ligne"""
-    return JSONResponse({"status": "ok", "message": "Orchestrator API is running"})
-
-@app.get("/agents")
-def list_agents():
-    containers = client.containers.list(filters={"name": "agent-rag"})
-    return [c.name for c in containers]
-
-@app.post("/agents")
-def create_agent():
-    try:
-        # Trouver le prochain index disponible
-        containers = client.containers.list(filters={"name": "agent-rag"})
-        idx = len(containers) + 1
-        name = f"agent-rag-{idx}"
-        
-        logger.info(f"Tentative de création de l'agent: {name}")
-        
-        # Créer le conteneur avec l'image prototypeprocom-agent-rag-template
-        client.containers.run(
-            "prototypeprocom-agent-rag-template",  # Nom corrigé de l'image
-            name=name,
-            network="prototypeprocom_backend",  # Nom complet du réseau
-            detach=True,
-            environment={
-                "AGENT_ID": str(idx),
-                "DATA_PATH": f"/app/data/agent_{idx}",
-                "POSTGRES_URL": "postgresql://rag_user:rag_pass@postgres:5432/rag_db"
-            },
-            volumes={
-                "prototypeprocom_rag_data": {"bind": "/app/data", "mode": "rw"}
-            }
+    if mcp_adapter.session is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Service non disponible. La connexion au serveur MCP a échoué."
         )
-        logger.info(f"Agent créé avec succès: {name}")
-        return {"created": name}
-    except Exception as e:
-        logger.error(f"Erreur lors de la création de l'agent: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/agents/{name}")
-def delete_agent(name: str):
     try:
-        c = client.containers.get(name)
-        c.stop()
-        c.remove()
-        return {"deleted": name}
-    except docker.errors.NotFound:
-        return {"error": "not found"}
+
+        response_text = await mcp_adapter.process_query(request.query)
+        
+        return {
+            "query": request.query,
+            "response": response_text
+        }
+    except Exception as e:
+        print(f"Erreur lors du traitement de la requête: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur lors du traitement LLM/MCP: {e}")
+
+@app.get("/health")
+def health_check():
+    """Vérification simple de l'état de l'API."""
+    status = "running" if mcp_adapter.session is not None else "initializing"
+    return {"status": status}
