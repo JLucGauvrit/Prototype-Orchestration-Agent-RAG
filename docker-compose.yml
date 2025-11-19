@@ -1,4 +1,4 @@
-#version: "3.9"
+version: "3.9"
 
 services:
   # === Interface utilisateur ===
@@ -14,15 +14,10 @@ services:
       - orchestrator
     environment:
       - ORCHESTRATOR_URL=http://orchestrator:8000
-    develop:
-      watch:
-        - path: ./ui
-          target: /usr/share/nginx/html
-          action: sync+restart
 
-  # === Orchestrateur principal (FastAPI) ===
+  # === Orchestrateur (MCP Client) ===
   orchestrator:
-    build: ./orchestrator
+    build: ./mcp/client
     container_name: orchestrator
     restart: always
     ports:
@@ -30,85 +25,45 @@ services:
     networks:
       - frontend
       - backend
-    develop:
-      watch:
-        - path: ./orchestrator
-          target: /app
-          action: sync+restart
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./mcp/server:/app/mcp_server
     environment:
-      - MCP_SERVER_URL=http://mcp-server:7000
-      - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
+      - PPLX_API_KEY=${PERPLEXITY_API_KEY}
     depends_on:
-      - mcp-server
+      - agent-rag-1
+      - agent-rag-2
 
-  # === Serveur MCP (coordination des clients MCP et agents RAG) ===
-  mcp-server:
-    build: ./mcp/server
-    container_name: mcp-server
+  # === Agent RAG 1 - Machine Learning ===
+  agent-rag-1:
+    build: ./agents/rag
+    container_name: agent-rag-1
     restart: always
     ports:
-      - "7000:7000"
-    networks:
-      - backend
-    develop:
-      watch:
-        - path: ./mcp/server
-          target: /app
-          action: sync+restart
-    environment:
-      - BACKEND_NETWORK=backend
-
-  # === Exemple d’un client MCP (peut être dupliqué dynamiquement) ===
-  mcp-client-template:
-    build: ./mcp/client
-    container_name: mcp-client-template
+      - "9001:9000"
     networks:
       - backend
     volumes:
-      - rag_data:/app/data
+      - ./agents/rag/data/agent-1:/app/data
     environment:
-      - MCP_SERVER_URL=http://mcp-server:7000
-      - RAG_AGENT_URL=http://agent-rag-template:9000
-      - AGENT_ID=template
-    depends_on:
-      - mcp-server
+      - AGENT_ID=agent-1
+      - DATA_PATH=/app/data
 
-  # === Exemple d’un agent RAG (un par instance) ===
-  agent-rag-template:
+  # === Agent RAG 2 - Programming ===
+  agent-rag-2:
     build: ./agents/rag
-    container_name: agent-rag-template
-    networks:
-      - backend
-    volumes:
-      - rag_data:/app/data
-    environment:
-      - AGENT_ID=template
-      - DATA_PATH=/app/data/agent_template
-      - POSTGRES_URL=postgresql://rag_user:rag_pass@postgres:5432/rag_db
-    depends_on:
-      - postgres
-      - mcp-server
-
-  # === Base de données pour stockage vectorisé ===
-  postgres:
-    image: postgres:16
-    container_name: postgres
+    container_name: agent-rag-2
     restart: always
+    ports:
+      - "9002:9000"
     networks:
       - backend
-    environment:
-      - POSTGRES_USER=rag_user
-      - POSTGRES_PASSWORD=rag_pass
-      - POSTGRES_DB=rag_db
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - ./agents/rag/data/agent-2:/app/data
+    environment:
+      - AGENT_ID=agent-2
+      - DATA_PATH=/app/data
 
-# === Volumes persistants ===
-volumes:
-  rag_data:
-  pg_data:
+# Pas de volumes persistants nécessaires (fichiers montés directement)
 
 # === Réseaux ===
 networks:

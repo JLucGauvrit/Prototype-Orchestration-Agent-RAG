@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install fastapi uvicorn psycopg2-binary
+RUN pip install fastapi uvicorn sentence-transformers numpy
 
 EXPOSE 9000
 

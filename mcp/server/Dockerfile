@@ -4,8 +4,10 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install fastapi uvicorn
+RUN pip install --no-cache-dir \
+    "mcp[cli]" \
+    httpx
 
-EXPOSE 7000
+# Le serveur MCP communique via stdio, pas besoin d'exposer de port
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7000"]
+CMD ["python", "main.py"]

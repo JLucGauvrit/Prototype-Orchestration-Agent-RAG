@@ -1,0 +1,10 @@
+Machine learning is a subset of artificial intelligence that enables computers to learn from data without being explicitly programmed.
+Deep learning is a type of machine learning that uses neural networks with multiple layers to learn complex patterns.
+Supervised learning uses labeled data to train models, where each example has an input and a corresponding output.
+Unsupervised learning finds patterns in data without labeled examples, using techniques like clustering and dimensionality reduction.
+Reinforcement learning trains agents to make decisions by rewarding desired behaviors and punishing undesired ones.
+Neural networks are computational models inspired by the human brain, consisting of interconnected nodes called neurons.
+Gradient descent is an optimization algorithm used to minimize the loss function in machine learning models.
+Overfitting occurs when a model learns the training data too well and performs poorly on new, unseen data.
+Cross-validation is a technique used to evaluate model performance by splitting data into training and testing sets multiple times.
+Feature engineering is the process of selecting and transforming variables to improve model performance.

@@ -1,0 +1,10 @@
+Python is a high-level programming language known for its simplicity and readability, widely used in data science and web development.
+JavaScript is the primary language for web development, running in browsers to create interactive and dynamic web pages.
+Docker is a platform that uses containers to package applications with all their dependencies, ensuring consistency across environments.
+Git is a distributed version control system that tracks changes in source code during software development.
+REST APIs use HTTP requests to enable communication between different software systems in a stateless manner.
+Kubernetes is a container orchestration platform that automates the deployment, scaling, and management of containerized applications.
+SQL is a domain-specific language used to manage and query relational databases.
+Microservices architecture breaks down applications into small, independent services that communicate through APIs.
+DevOps is a set of practices that combines software development and IT operations to shorten the development lifecycle.
+Cloud computing provides on-demand access to computing resources like servers, storage, and databases over the internet.
